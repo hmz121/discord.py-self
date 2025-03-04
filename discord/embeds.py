@@ -168,6 +168,7 @@ class Embed:
         '_provider',
         '_author',
         '_fields',
+        'description',
         '_flags',
     )
 
