@@ -46,11 +46,8 @@ class EmbedMedia(TypedDict, total=False):
     height: int
     width: int
     flags: int
-<<<<<<< HEAD
     placeholder_version: int
     placeholder: str
-=======
->>>>>>> cab4732b (Make embed flags required and add them to all media fields)
 
 
 class EmbedProvider(TypedDict, total=False):
