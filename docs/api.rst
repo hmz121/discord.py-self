@@ -7149,6 +7149,11 @@ User
 .. autoclass:: Note()
     :members:
 
+.. attributetable:: RecentAvatar
+
+.. autoclass:: RecentAvatar()
+    :members:
+
 Affinity
 ~~~~~~~~~
 
