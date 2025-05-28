@@ -3518,7 +3518,7 @@ class Client:
     async def search_companies(self, query: str, /) -> List[Company]:
         """|coro|
 
-        Query your created companies.
+        Query companies registered on Discord.
 
         .. versionadded:: 2.0
 
