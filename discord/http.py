@@ -1077,11 +1077,11 @@ class HTTPClient:
             if resp.status == 200:
                 return await resp.read()
             elif resp.status == 404:
-                raise NotFound(resp, 'asset not found')
+                raise NotFound(resp, 'Asset not found')
             elif resp.status == 403:
-                raise Forbidden(resp, 'cannot retrieve asset')
+                raise Forbidden(resp, 'Cannot retrieve asset')
             else:
-                raise HTTPException(resp, 'failed to get asset')
+                raise HTTPException(resp, 'Failed to get asset')
 
     async def upload_to_cloud(self, url: str, file: Union[File, str], hash: Optional[str] = None) -> Any:
         response: Optional[aiohttp.ClientResponse] = None
@@ -1140,11 +1140,11 @@ class HTTPClient:
             if resp.status == 200:
                 return await resp.json()
             elif resp.status == 404:
-                raise NotFound(resp, 'rtc regions not found')
+                raise NotFound(resp, 'RTC regions not found')
             elif resp.status == 403:
-                raise Forbidden(resp, 'cannot retrieve rtc regions')
+                raise Forbidden(resp, 'Cannot retrieve RTC regions')
             else:
-                raise HTTPException(resp, 'failed to get rtc regions')
+                raise HTTPException(resp, 'Failed to get RTC regions')
 
     # State management
 
