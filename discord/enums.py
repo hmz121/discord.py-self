@@ -131,9 +131,6 @@ __all__ = (
     'MessageReferenceType',
 )
 
-if TYPE_CHECKING:
-    from typing_extensions import Self
-
 
 def _create_value_cls(name: str, comparable: bool):
     # All the type ignores here are due to the type checker being unable to recognise
@@ -160,7 +157,7 @@ class EnumMeta(type):
         _enum_member_map_: ClassVar[Dict[str, Any]]
         _enum_value_map_: ClassVar[Dict[Any, Any]]
 
-    def __new__(cls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], *, comparable: bool = False) -> Self:
+    def __new__(cls, name: str, bases: Tuple[type, ...], attrs: Dict[str, Any], *, comparable: bool = False) -> EnumMeta:
         value_mapping = {}
         member_mapping = {}
         member_names = []
@@ -1442,7 +1439,7 @@ class OperatingSystem(Enum):
     unknown = -99
 
     @classmethod
-    def from_string(cls, value: str) -> Self:
+    def from_string(cls, value: str) -> OperatingSystem:
         lookup = {
             'windows': cls.windows,
             'win32': cls.windows,
