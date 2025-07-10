@@ -868,7 +868,11 @@ class HTTPClient:
                 try:
                     response = await self.__session.request(method, url, **kwargs, stream=True, interface=self.interface)
                     response.status = response.status_code  # type: ignore
-                    response.reason = HTTPStatus(response.status_code).phrase
+                    try:
+                        response.reason = HTTPStatus(response.status_code).phrase
+                    except Exception:
+                        # Amazing behavior to send a status code of "0"
+                        response.reason = 'Illegal Status Code'
 
                     log_fmt = '%s %s with %s has returned %s.'
                     log_params = [method, url, kwargs.get('data'), response.status_code]
@@ -4846,6 +4850,9 @@ class HTTPClient:
 
     def get_country_code(self) -> Response[subscriptions.CountryCode]:
         return self.request(Route('GET', '/users/@me/billing/country-code'))
+
+    def get_location_info(self) -> Response[subscriptions.LocationInfo]:
+        return self.request(Route('GET', '/users/@me/billing/location-info'))
 
     def get_library_entries(
         self, country_code: Optional[str] = None, payment_source_id: Optional[Snowflake] = None
