@@ -7296,6 +7296,11 @@ User
 .. autoclass:: RecentAvatar()
     :members:
 
+.. attributetable:: PrimaryGuild
+
+.. autoclass:: PrimaryGuild()
+    :members:
+
 Affinity
 ~~~~~~~~~
 
