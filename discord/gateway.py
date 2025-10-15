@@ -944,7 +944,7 @@ class DiscordVoiceWebSocket:
 
     async def _sendstr(self, data: str, /) -> None:
         try:
-            await self.ws.send(data.encode('utf-8'))
+            await self.ws.send_str(data)
         except WebSocketError:
             if self.ws.closed:
                 # Not much we can do here
@@ -1101,13 +1101,18 @@ class DiscordVoiceWebSocket:
 
         fut: asyncio.Future[bytes] = self.loop.create_future()
 
-        def get_ip_packet(data: bytes):
-            if data[1] == 0x02 and len(data) == 74:
-                self.loop.call_soon_threadsafe(fut.set_result, data)
-
-        fut.add_done_callback(lambda f: state.remove_socket_listener(get_ip_packet))
-        state.add_socket_listener(get_ip_packet)
-        recv = await fut
+while True:
+        data = await asyncio.wait_for(self.loop.sock_recv(state.socket, 4096), timeout=2.0)
+        # Expect 74 bytes; first two bytes 0x0002 (server reply), next two 0x0046 (70)
+        if len(data) != 74:
+            continue
+        if data[0] != 0x00 or data[1] != 0x02:  # type == 2
+            continue
+        #... continue handling
+                    
+        if data[0] != 0x00 or data[1] != 0x02:  # type == 2
+            continue
+        #... continue handling
 
         _log.debug('Received IP discovery packet: %s.', recv)
 
