@@ -419,21 +419,7 @@ class VoiceConnectionState:
             await self._wait_for_state(ConnectionFlowState.got_both_voice_updates)
 
             _log.info('Voice handshake complete. Endpoint found: %s.', self.endpoint)
-
-            try:
-                self.ws = await self._connect_websocket(resume)
-                await self._handshake_websocket()
-                break
-            except ConnectionClosed:
-                if reconnect:
-                    wait = 1 + i * 2.0
-                    _log.exception('Failed to connect to voice... Retrying in %ss...', wait)
-                    await self.disconnect(cleanup=False)
-                    await asyncio.sleep(wait)
-                    continue
-                else:
-                    await self.disconnect()
-                    raise
+            break
 
     async def _connect(
         self, reconnect: bool, timeout: float, self_deaf: bool, self_mute: bool, self_video: bool, resume: bool
