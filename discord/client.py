@@ -38,6 +38,7 @@ from typing import (
     Generator,
     List,
     Literal,
+    Mapping,
     NamedTuple,
     Optional,
     overload,
@@ -46,10 +47,12 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
+    TypedDict,
     Union,
 )
 
 import aiohttp
+from curl_cffi import CurlError
 
 from .user import _UserTag, RecentAvatar, User, ClientUser
 from .invite import Invite
@@ -103,11 +106,13 @@ from .oauth2 import OAuth2Authorization, OAuth2Token
 from .experiment import UserExperiment, GuildExperiment
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
     from types import TracebackType
-    from .guild import GuildChannel
+
+    from typing_extensions import Self, Unpack
+
     from .abc import Snowflake, SnowflakeTime
-    from .channel import DMChannel
+    from .channel import DMChannel, GroupChannel
+    from .guild import GuildChannel
     from .message import Message
     from .member import Member
     from .voice_client import VoiceProtocol
@@ -120,7 +125,37 @@ if TYPE_CHECKING:
     from .tutorial import Tutorial
     from .file import File
     from .guild import Guild
+    from .types.read_state import BulkReadState
     from .types.snowflake import Snowflake as _Snowflake
+    from .flags import MemberCacheFlags
+    from .errors import CaptchaRequired
+
+    class _ClientOptions(TypedDict, total=False):
+        max_messages: Optional[int]
+        proxy: Optional[str]
+        proxy_auth: Optional[aiohttp.BasicAuth]
+        member_cache_flags: Optional[MemberCacheFlags]
+        chunk_guilds_at_startup: bool
+        guild_subscriptions: bool
+        status: Optional[Status]
+        activity: Optional[BaseActivity]
+        activities: Optional[List[BaseActivity]]
+        afk: bool
+        idle_since: Optional[datetime]
+        allowed_mentions: Optional[AllowedMentions]
+        heartbeat_timeout: Optional[float]
+        assume_unsync_clock: bool
+        enable_debug_events: bool
+        sync_presence: bool
+        captcha_handler: Optional[Callable[[CaptchaRequired, Client], Awaitable[str]]]
+        max_ratelimit_timeout: Optional[float]
+        default_ratelimit_limit: Optional[int]
+        preferred_rtc_regions: Optional[List[str]]
+        canary: bool
+        apm_tracing: bool
+        rpc_proxy: Optional[str]
+        proxy_gateway: bool
+        timezone: Optional[str]
 
     PrivateChannel = Union[DMChannel, GroupChannel]
 
@@ -245,6 +280,10 @@ class Client:
         Whether to start your session as AFK. Defaults to ``False``.
 
         .. versionadded:: 2.1
+    idle_since: Optional[:class:`datetime.datetime`]
+        The time to set the client as idle since. If ``None``, the client is not idle.
+
+        .. versionadded:: 2.1
     allowed_mentions: Optional[:class:`AllowedMentions`]
         Control how the client handles mentions by default on every message sent.
 
@@ -321,7 +360,7 @@ class Client:
         The websocket gateway the client is currently connected to. Could be ``None``.
     """
 
-    def __init__(self, **options: Any) -> None:
+    def __init__(self, **options: Unpack[_ClientOptions]) -> None:
         self.loop: asyncio.AbstractEventLoop = _loop
         # self.ws is set in the connect method
         self.ws: DiscordWebSocket = None  # type: ignore
@@ -991,6 +1030,7 @@ class Client:
                 ConnectionClosed,
                 aiohttp.ClientError,
                 asyncio.TimeoutError,
+                CurlError,
             ) as exc:
                 self.dispatch('disconnect')
                 if not reconnect:
@@ -1024,7 +1064,7 @@ class Client:
                         raise
 
                 retry = backoff.delay()
-                _log.exception("Attempting a reconnect in %.2fs", retry)
+                _log.exception('Attempting a reconnect in %.2fs', retry)
                 await asyncio.sleep(retry)
                 # Always try to RESUME the connection
                 # If the connection is not RESUME-able then the gateway will invalidate the session
@@ -2344,7 +2384,7 @@ class Client:
         )
         return Invite.from_incomplete(state=state, data=data, message=invite._message)
 
-    async def delete_invite(self, invite: Union[Invite, str], /) -> Invite:
+    async def delete_invite(self, invite: Union[Invite, str], /, *, reason: Optional[str] = None) -> Invite:
         """|coro|
 
         Revokes an :class:`.Invite`, URL, or ID to an invite.
@@ -2381,7 +2421,7 @@ class Client:
         """
         resolved = utils.resolve_invite(invite)
         state = self._connection
-        data = await state.http.delete_invite(resolved.code)
+        data = await state.http.delete_invite(resolved.code, reason=reason)
         return Invite.from_incomplete(state=state, data=data)
 
     async def revoke_invites(self) -> List[Invite]:
@@ -3214,16 +3254,13 @@ class Client:
         return GroupChannel(me=self.user, data=data, state=state)  # type: ignore # user is always present when logged in
 
     @overload
-    async def send_friend_request(self, user: _UserTag, /) -> None:
-        ...
+    async def send_friend_request(self, user: _UserTag, /) -> None: ...
 
     @overload
-    async def send_friend_request(self, user: str, /) -> None:
-        ...
+    async def send_friend_request(self, user: str, /) -> None: ...
 
     @overload
-    async def send_friend_request(self, username: str, discriminator: str, /) -> None:
-        ...
+    async def send_friend_request(self, username: str, discriminator: str, /) -> None: ...
 
     async def send_friend_request(self, *args: Union[_UserTag, str]) -> None:
         """|coro|
@@ -4222,7 +4259,7 @@ class Client:
         )
         return [Promotion(state=state, data=d) for d in data]
 
-    async def user_offer(self, *, payment_gateway: Optional[PaymentGateway] = None) -> UserOffer:
+    async def user_offer(self, *, discount_id: int = MISSING, payment_gateway: Optional[PaymentGateway] = None) -> UserOffer:
         """|coro|
 
         Retrieves the current user offer for your account.
@@ -4232,6 +4269,8 @@ class Client:
 
         Parameters
         -----------
+        discount_id: :class:`int`
+            The specific discount ID to fetch the offer of.
         payment_gateway: Optional[:class:`.PaymentGateway`]
             The payment gateway to fetch the user offer for.
             Used to fetch user offers for :attr:`.PaymentGateway.apple`
@@ -4250,10 +4289,13 @@ class Client:
             The user offer for your account.
         """
         state = self._connection
-        data = await state.http.get_user_offer(payment_gateway=int(payment_gateway) if payment_gateway else None)
+        data = await state.http.get_user_offer(
+            payment_gateway=int(payment_gateway) if payment_gateway else None,
+            offer_id=discount_id if discount_id is not MISSING else None,
+        )
         return UserOffer(data=data, state=state)
 
-    @utils.deprecated("Client.user_offer()")
+    @utils.deprecated('Client.user_offer()')
     async def trial_offer(self) -> TrialOffer:
         """|coro|
 
@@ -5442,18 +5484,15 @@ class Client:
     @overload
     async def fetch_experiments(
         self, with_guild_experiments: Literal[True] = ...
-    ) -> List[Union[UserExperiment, GuildExperiment]]:
-        ...
+    ) -> List[Union[UserExperiment, GuildExperiment]]: ...
 
     @overload
-    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> List[UserExperiment]:
-        ...
+    async def fetch_experiments(self, with_guild_experiments: Literal[False] = ...) -> List[UserExperiment]: ...
 
     @overload
     async def fetch_experiments(
         self, with_guild_experiments: bool = True
-    ) -> Union[List[UserExperiment], List[Union[UserExperiment, GuildExperiment]]]:
-        ...
+    ) -> Union[List[UserExperiment], List[Union[UserExperiment, GuildExperiment]]]: ...
 
     async def fetch_experiments(
         self, with_guild_experiments: bool = True
@@ -5548,12 +5587,10 @@ class Client:
         return [state.create_guild(d) for d in data.get('guilds_info', [])]  # type: ignore
 
     @overload
-    async def join_hub(self, guild: Snowflake, email: str, *, code: None = ...) -> None:
-        ...
+    async def join_hub(self, guild: Snowflake, email: str, *, code: None = ...) -> None: ...
 
     @overload
-    async def join_hub(self, guild: Snowflake, email: str, *, code: str = ...) -> Guild:
-        ...
+    async def join_hub(self, guild: Snowflake, email: str, *, code: str = ...) -> Guild: ...
 
     async def join_hub(self, guild: Snowflake, email: str, *, code: Optional[str] = None) -> Optional[Guild]:
         """|coro|
@@ -5685,3 +5722,30 @@ class Client:
         user = state.user
         data = await state.http.get_recent_avatars()
         return [RecentAvatar(user=user, data=d) for d in data['avatars']]  # type: ignore # user will be present here
+
+    async def bulk_ack(self, acks: Mapping[ReadState, Snowflake], /) -> None:
+        """|coro|
+
+        Updates multiple read states' :attr:`.ReadState.last_acked_id` in bulk.
+
+        .. versionadded:: 2.1
+
+        Parameters
+        -----------
+        acks: Dict[:class:`.ReadState`, :class:`.abc.Snowflake`]
+            A mapping of read states to the last acknowledged entity ID (e.g. message ID).
+
+        Raises
+        ------
+        HTTPException
+            Updating the read states failed.
+        """
+        payload: List[BulkReadState] = [
+            {
+                'channel_id': read_state.id,
+                'read_state_type': read_state.type.value,
+                'message_id': last_acked.id,
+            }
+            for read_state, last_acked in acks.items()
+        ]  # type: ignore
+        await self._connection.http.ack_bulk(payload)

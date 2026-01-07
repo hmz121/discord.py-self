@@ -1064,6 +1064,7 @@ Members
     - avatar
     - username
     - discriminator
+    - primary guild
 
     :param before: The updated user's old info.
     :type before: :class:`User`
@@ -1829,6 +1830,15 @@ of :class:`enum.Enum`.
 
           Checks if two messages are not equal.
 
+    .. method:: is_deletable()
+
+        Checks if the message type is deletable, as some system messages cannot be deleted.
+
+        .. versionadded:: 2.1
+
+        :return: A boolean denoting if the message type is deletable.
+        :rtype: :class:`bool`
+
     .. attribute:: default
 
         The default message type. This is the same as regular messages.
@@ -2032,6 +2042,12 @@ of :class:`enum.Enum`.
     .. attribute:: poll_result
 
         The system message sent when a poll has closed.
+
+        .. versionadded:: 2.1
+
+    .. attribute:: emoji_added
+
+        The system message sent when a custom emoji is added to the guild.
 
         .. versionadded:: 2.1
 
@@ -3117,6 +3133,7 @@ of :class:`enum.Enum`.
         which was created.
 
         Possible attributes for :class:`AuditLogDiff`:
+
         - :attr:`~AuditLogDiff.name`
         - :attr:`~AuditLogDiff.channel`
         - :attr:`~AuditLogDiff.description`
@@ -3136,6 +3153,7 @@ of :class:`enum.Enum`.
         which was updated.
 
         Possible attributes for :class:`AuditLogDiff`:
+
         - :attr:`~AuditLogDiff.name`
         - :attr:`~AuditLogDiff.channel`
         - :attr:`~AuditLogDiff.description`
@@ -3155,6 +3173,7 @@ of :class:`enum.Enum`.
         which was deleted.
 
         Possible attributes for :class:`AuditLogDiff`:
+
         - :attr:`~AuditLogDiff.name`
         - :attr:`~AuditLogDiff.channel`
         - :attr:`~AuditLogDiff.description`
@@ -3336,6 +3355,24 @@ of :class:`enum.Enum`.
 
         .. versionadded:: 2.0
 
+    .. attribute:: automod_quarantine_user
+
+        An automod rule quarantined a member.
+
+        When this is the action, the type of :attr:`~AuditLogEntry.target` is
+        a :class:`Member` with the ID of the person who triggered the automod rule.
+
+        When this is the action, the type of :attr:`~AuditLogEntry.extra` is
+        set to an unspecified proxy object with 3 attributes:
+
+        - ``automod_rule_name``: The name of the automod rule that was triggered.
+        - ``automod_rule_trigger_type``: A :class:`AutoModRuleTriggerType` representation of the rule type that was triggered.
+        - ``channel``: The channel of the message sent by the member when they were flagged. `None` if the member was quarantined when they just joined the guild.
+
+        When this is the action, :attr:`AuditLogEntry.changes` is empty.
+
+        .. versionadded:: 2.1
+
     .. attribute:: creator_monetization_request_created
 
         A request to monetize the server was created.
@@ -3345,6 +3382,104 @@ of :class:`enum.Enum`.
     .. attribute:: creator_monetization_terms_accepted
 
         The terms and conditions for creator monetization were accepted.
+
+        .. versionadded:: 2.1
+
+    .. attribute:: onboarding_prompt_create
+
+        A guild onboarding prompt was created.
+
+        When this is the action, the type of :attr:`~AuditLogEntry.target` is
+        a :class:`Object` with the ID of the prompt that the options belong to.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.type`
+        - :attr:`~AuditLogDiff.title`
+        - :attr:`~AuditLogDiff.options`
+        - :attr:`~AuditLogDiff.single_select`
+        - :attr:`~AuditLogDiff.required`
+        - :attr:`~AuditLogDiff.in_onboarding`
+
+        .. versionadded:: 2.1
+
+    .. attribute:: onboarding_prompt_update
+
+        A guild onboarding prompt was updated.
+
+        When this is the action, the type of :attr:`~AuditLogEntry.target` is
+        a :class:`Object` with the ID of the prompt that the options belong to.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.type`
+        - :attr:`~AuditLogDiff.title`
+        - :attr:`~AuditLogDiff.options`
+        - :attr:`~AuditLogDiff.single_select`
+        - :attr:`~AuditLogDiff.required`
+        - :attr:`~AuditLogDiff.in_onboarding`
+
+        .. versionadded:: 2.1
+
+    .. attribute:: onboarding_prompt_delete
+
+        A guild onboarding prompt was deleted.
+
+        When this is the action, the type of :attr:`~AuditLogEntry.target` is
+        a :class:`Object` with the ID of the prompt that the options belong to.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.type`
+        - :attr:`~AuditLogDiff.title`
+        - :attr:`~AuditLogDiff.options`
+        - :attr:`~AuditLogDiff.single_select`
+        - :attr:`~AuditLogDiff.required`
+        - :attr:`~AuditLogDiff.in_onboarding`
+
+        .. versionadded:: 2.1
+
+    .. attribute:: onboarding_create
+
+        The guild's onboarding configuration was created.
+
+        When this is the action, the type of :attr:`~AuditLogEntry.target` is
+        always ``None``. Use :attr:`~AuditLogEntry.guild` to access the guild.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.enabled`
+        - :attr:`~AuditLogDiff.default_channels`
+        - :attr:`~AuditLogDiff.prompts`
+        - :attr:`~AuditLogDiff.mode`
+
+        .. versionadded:: 2.1
+
+    .. attribute:: onboarding_update
+
+        The guild's onboarding configuration was updated.
+
+        When this is the action, the type of :attr:`~AuditLogEntry.target` is
+        always ``None``. Use :attr:`~AuditLogEntry.guild` to access the guild.
+
+        Possible attributes for :class:`AuditLogDiff`:
+
+        - :attr:`~AuditLogDiff.enabled`
+        - :attr:`~AuditLogDiff.default_channels`
+        - :attr:`~AuditLogDiff.prompts`
+        - :attr:`~AuditLogDiff.mode`
+
+        .. versionadded:: 2.1
+
+    .. attribute:: home_settings_create
+
+        The guild's server guide was created.
+
+        .. versionadded:: 2.1
+
+    .. attribute:: home_settings_update
+
+        The guild's server guide was updated.
 
         .. versionadded:: 2.1
 
@@ -5672,6 +5807,16 @@ of :class:`enum.Enum`.
 
         The ``vi`` locale.
 
+    .. attribute:: language_code
+
+        :class:`str`: Returns the locale's BCP 47 language code in the format of ``language-COUNTRY``.
+
+        This is derived from a predefined mapping based on Discord's supported locales.
+        If no mapping exists for the current locale, this returns the raw locale value as a fallback.
+
+        .. versionadded:: 2.1
+
+
 .. class:: MFALevel
 
     Represents the Multi-Factor Authentication requirement level of a guild.
@@ -6434,6 +6579,113 @@ of :class:`enum.Enum`.
 
         A marketing moment promotion.
 
+.. class:: StatusDisplayType
+
+    Represents which field is of the user's activity is
+    displayed in the members list.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: name
+
+        The name of the activity is displayed.
+
+    .. attribute:: state
+
+        The state of the activity is displayed.
+
+    .. attribute:: details
+
+        The details of the activity are displayed.
+
+.. class:: OnboardingPromptType
+
+    Represents the type of onboarding prompt.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: multiple_choice
+
+        Prompt options are multiple choice.
+
+    .. attribute:: dropdown
+
+        Prompt options are displayed as a drop-down.
+
+.. class:: OnboardingMode
+
+    Represents the onboarding constraint mode.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: default
+
+        Only default channels count towards onboarding constraints.
+
+    .. attribute:: advanced
+
+        Default channels and questions count towards onboarding constraints.
+
+.. class:: CollectibleType
+
+    Represents the type of a :class:`Collectible`.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: nameplate
+
+        The collectible is a nameplate.
+
+.. class:: NameplatePalette
+
+    Represents the available palettes for a nameplate.
+
+    .. versionadded:: 2.1
+
+    .. attribute:: crimson
+
+        The collectible nameplate palette is crimson.
+
+    .. attribute:: berry
+
+        The collectible nameplate palette is berry.
+
+    .. attribute:: sky
+
+        The collectible nameplate palette is sky.
+
+    .. attribute:: teal
+
+        The collectible nameplate palette is teal.
+
+    .. attribute:: forest
+
+        The collectible nameplate palette is forest.
+
+    .. attribute:: bubble_gum
+
+        The collectible nameplate palette is bubble gum.
+
+    .. attribute:: violet
+
+        The collectible nameplate palette is violet.
+
+    .. attribute:: cobalt
+
+        The collectible nameplate palette is cobalt.
+
+    .. attribute:: clover
+
+        The collectible nameplate palette is clover.
+
+    .. attribute:: lemon
+
+        The collectible nameplate palette is lemon.
+
+    .. attribute:: white
+
+        The collectible nameplate palette is white.
+
 .. _discord-api-audit-logs:
 
 Audit Log Data
@@ -6686,9 +6938,9 @@ AuditLogDiff
 
     .. attribute:: type
 
-        The type of channel, sticker, webhook or integration.
+        The type of channel, sticker, webhook, integration or onboarding prompt.
 
-        :type: Union[:class:`ChannelType`, :class:`StickerType`, :class:`WebhookType`, :class:`str`]
+        :type: Union[:class:`ChannelType`, :class:`StickerType`, :class:`WebhookType`, :class:`str`, :class:`OnboardingPromptType`]
 
     .. attribute:: topic
 
@@ -7053,7 +7305,7 @@ AuditLogDiff
 
     .. attribute:: enabled
 
-        Whether the automod rule is active or not.
+        Whether guild onboarding or the automod rule is active or not.
 
         :type: :class:`bool`
 
@@ -7073,7 +7325,7 @@ AuditLogDiff
 
         The trigger for the automod rule.
 
-        .. note ::
+        .. note::
 
             The :attr:`~AutoModTrigger.type` of the trigger may be incorrect.
             Some attributes such as :attr:`~AutoModTrigger.keyword_filter`, :attr:`~AutoModTrigger.regex_patterns`,
@@ -7085,7 +7337,7 @@ AuditLogDiff
 
         The actions to take when an automod rule is triggered.
 
-        :type: List[AutoModRuleAction]
+        :type: List[:class:`AutoModRuleAction`]
 
     .. attribute:: exempt_roles
 
@@ -7167,8 +7419,71 @@ AuditLogDiff
 
         :type: Optional[:class:`PartialEmoji`]
 
-.. this is currently missing the following keys: reason
-   I'm not sure how to port these
+    .. attribute:: options
+
+        The onboarding prompt options associated with this onboarding prompt.
+
+        See also :attr:`OnboardingPrompt.options`
+
+        :type: List[:class:`OnboardingPromptOption`]
+
+    .. attribute:: default_channels
+
+        The default channels associated with the onboarding in this guild.
+
+        See also :attr:`Onboarding.default_channels`
+
+        :type: List[:class:`abc.GuildChannel`, :class:`Object`]
+
+    .. attribute:: prompts
+
+        The onboarding prompts associated with the onboarding in this guild.
+
+        See also :attr:`Onboarding.prompts`
+
+        :type: List[:class:`OnboardingPrompt`]
+
+    .. attribute:: title
+
+        The title of the onboarding prompt.
+
+        See also :attr:`OnboardingPrompt.title`
+
+        :type: :class:`str`
+
+    .. attribute:: single_select
+
+        Whether only one prompt option can be selected.
+
+        See also :attr:`OnboardingPrompt.single_select`
+
+        :type: :class:`bool`
+
+    .. attribute:: required
+
+        Whether the onboarding prompt is required to complete the onboarding.
+
+        See also :attr:`OnboardingPrompt.required`
+
+        :type: :class:`bool`
+
+    .. attribute:: in_onboarding
+
+        Whether this prompt is currently part of the onboarding flow.
+
+        See also :attr:`OnboardingPrompt.in_onboarding`
+
+        :type: :class:`bool`
+
+    .. attribute:: mode
+
+        The onboarding constraint mode.
+
+        See also :attr:`Onboarding.mode`
+
+        :type: :class:`OnboardingMode`
+
+
 
 Webhook Support
 ------------------
@@ -7384,6 +7699,11 @@ User
 .. attributetable:: DisplayNameStyle
 
 .. autoclass:: DisplayNameStyle()
+    :members:
+
+.. attributetable:: Collectible
+
+.. autoclass:: Collectible()
     :members:
 
 Affinity
@@ -8425,6 +8745,25 @@ WelcomeScreen
 .. attributetable:: WelcomeChannel
 
 .. autoclass:: WelcomeChannel()
+    :members:
+
+Onboarding
+~~~~~~~~~~~
+
+.. attributetable:: Onboarding
+
+.. autoclass:: Onboarding()
+    :members:
+
+.. attributetable:: OnboardingPrompt
+
+.. autoclass:: OnboardingPrompt()
+    :members:
+
+
+.. attributetable:: OnboardingPromptOption
+
+.. autoclass:: OnboardingPromptOption()
     :members:
 
 Tutorial

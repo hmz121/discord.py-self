@@ -882,7 +882,7 @@ class ApplicationActivityStatistics:
         self.application: Optional[PartialApplication] = application or (
             PartialApplication(state=state, data=data['application']) if 'application' in data else None  # type: ignore
         )
-        self._user = state.create_user(data['user']) if 'user' in data else None  # type: ignore
+        self._user = state.create_user(data['user']) if 'user' in data else None
         self.user_id: int = int(data['user_id']) if 'user_id' in data else state.self_id  # type: ignore
         self.duration: int = data.get('total_duration', data.get('duration', 0))
         self.sku_duration: int = data.get('total_discord_sku_duration', 0)
@@ -1438,7 +1438,7 @@ class ApplicationBranch(Hashable):
     async def create_build(
         self,
         *,
-        built_with: str = "DISPATCH",
+        built_with: str = 'DISPATCH',
         manifests: Sequence[MetadataObject],
         source_build: Optional[Snowflake] = None,
     ) -> Tuple[ApplicationBuild, List[Manifest]]:
@@ -2765,12 +2765,10 @@ class Application(PartialApplication):
         message_content_privacy_policy_location: str = ...,
         message_content_privacy_policy_example: str = ...,
         message_content_contact_deletion: str = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
-    async def request_intents(self, intents: ApplicationFlags, description: str) -> None:
-        ...
+    async def request_intents(self, intents: ApplicationFlags, description: str) -> None: ...
 
     async def request_intents(self, intents: ApplicationFlags, description: str, **kwargs: Any) -> None:
         """|coro|
@@ -2877,16 +2875,13 @@ class Application(PartialApplication):
         return [ApplicationTester(self, state, user) for user in data]
 
     @overload
-    async def whitelist(self, user: _UserTag, /) -> ApplicationTester:
-        ...
+    async def whitelist(self, user: _UserTag, /) -> ApplicationTester: ...
 
     @overload
-    async def whitelist(self, user: str, /) -> ApplicationTester:
-        ...
+    async def whitelist(self, user: str, /) -> ApplicationTester: ...
 
     @overload
-    async def whitelist(self, username: str, discriminator: str, /) -> ApplicationTester:
-        ...
+    async def whitelist(self, username: str, discriminator: str, /) -> ApplicationTester: ...
 
     async def whitelist(self, *args: Union[_UserTag, str]) -> ApplicationTester:
         """|coro|
@@ -3220,7 +3215,7 @@ class Application(PartialApplication):
         if dependent_sku is not None:
             payload['dependent_sku_id'] = dependent_sku.id
         if access_level is not None:
-            payload['access_level'] = int(access_level)
+            payload['access_type'] = int(access_level)
         if locales:
             payload['locales'] = [str(l) for l in locales]
         if features:

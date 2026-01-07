@@ -253,7 +253,7 @@ class MemberSidebar:
     def __init__(
         self,
         guild: Guild,
-        channels: List[abcSnowflake],
+        channels: Sequence[abcSnowflake],
         *,
         chunk: bool,
         delay: Union[int, float],
@@ -352,7 +352,7 @@ class MemberSidebar:
         if self.ranges:
             self.ranges = self.get_ranges(start=self.ranges[0][0])
 
-    def validate_channels(self, channels: List[abcSnowflake]) -> Sequence[Snowflake]:
+    def validate_channels(self, channels: Sequence[abcSnowflake]) -> Sequence[Snowflake]:
         guild = self.guild
         ids = set()
 
@@ -363,7 +363,7 @@ class MemberSidebar:
 
             # Attempt to account for member list ID bug
             if real_channel._can_everyone(Permissions.read_messages):
-                ids.add("everyone")
+                ids.add('everyone')
             else:
                 ids.add(real_channel.member_list_id)
 
@@ -689,8 +689,20 @@ class GuildSubscriptions:
     def members_for(self, guild: abcSnowflake, /) -> Sequence[int]:
         return utils.SequenceProxy(self._members.get(guild.id, ()))
 
+    def has_member(self, guild: abcSnowflake, member: abcSnowflake, /) -> bool:
+        members = self._members.get(guild.id)
+        if members is None:
+            return False
+        return members.has(member.id)
+
     def threads_for(self, guild: abcSnowflake, /) -> Sequence[int]:
         return utils.SequenceProxy(self._thread_member_lists.get(guild.id, ()))
+
+    def has_thread(self, guild: abcSnowflake, thread: abcSnowflake, /) -> bool:
+        threads = self._thread_member_lists.get(guild.id)
+        if threads is None:
+            return False
+        return threads.has(thread.id)
 
     def channels_for(self, guild: abcSnowflake, /) -> Dict[int, List[Tuple[int, int]]]:
         return self._channels.get(guild.id, {}).copy()
@@ -1404,8 +1416,12 @@ class ConnectionState:
         for msg in messages:
             try:
                 await delete_message(channel_id, msg.id, reason=reason)
-            except NotFound:
-                pass
+            except NotFound as exc:
+                if exc.code == 10008:
+                    continue  # bulk deletion ignores not found messages, single deletion does not.
+                # several other race conditions with deletion should fail without continuing,
+                # such as the channel being deleted and not found.
+                raise
 
     def _update_poll_counts(self, message: Message, answer_id: int, added: bool, self_voted: bool = False) -> Optional[Poll]:
         poll = message.poll
@@ -1652,7 +1668,7 @@ class ConnectionState:
                 presence['user'] = {'id': presence['user_id']}  # type: ignore
 
             if 'properties' in guild_data:
-                guild_data.update(guild_data.pop('properties'))  # type: ignore
+                guild_data.update(guild_data.pop('properties'))
 
             voice_states = guild_data.setdefault('voice_states', [])
             voice_states.extend(guild_extra.get('voice_states', []))
@@ -1730,7 +1746,7 @@ class ConnectionState:
             if 'last_pin_timestamp' in channel_data and hasattr(channel, 'last_pin_timestamp'):
                 channel.last_pin_timestamp = utils.parse_time(channel_data['last_pin_timestamp'])  # type: ignore
 
-        members = {int(m['user']['id']): m for m in data.get('members', [])}
+        members = {int(m['user']['id']): m for m in data.get('updated_members', [])}
 
         cache_flags = self.member_cache_flags
         for k, member_data in members.items():
@@ -1763,9 +1779,6 @@ class ConnectionState:
             channel.last_message_id = message.id  # type: ignore
 
         read_state = self.get_read_state(channel.id)
-        if message.author.id == self.self_id and message.type != MessageType.poll_result:
-            # Implicitly mark our own messages as read
-            read_state.last_acked_id = message.id
         if (
             not message.author.is_blocked()
             and not (channel.type == ChannelType.group and message.type == MessageType.recipient_remove)
@@ -1773,6 +1786,10 @@ class ConnectionState:
         ):
             # Increment mention count if applicable
             read_state.badge_count += 1
+        if message.author.id == self.self_id and message.type != MessageType.poll_result:
+            # Implicitly mark our own messages as read
+            read_state.last_acked_id = message.id
+            read_state.badge_count = 0
 
     def parse_message_delete(self, data: gw.MessageDeleteEvent) -> None:
         raw = RawMessageDeleteEvent(data)
@@ -2108,7 +2125,16 @@ class ConnectionState:
         self.dispatch('library_application_update', entry)
 
     def parse_sessions_replace(self, payload: gw.SessionsReplaceEvent, *, from_ready: bool = False) -> None:
+        # Discord returns a max of 15 sessions, even though the user may have more
+        # Unfortunately, this means our own session may not be included in the payload
         data = {s['session_id']: s for s in payload}
+        if len([s for s in data if s != 'all']) >= 15:
+            _log.warning('User has more than 15 active sessions. Client presence information may be inaccurate.')
+        if not data:
+            # Not really sure what to do when we receive an empty sessions payload
+            # This is an edge case either way, the session is probably dying soon
+            _log.warning('User has no sessions (from READY: %s). Discarding.', str(from_ready))
+            return
 
         for session_id, session in data.items():
             existing = self._sessions.get(session_id)
@@ -2137,14 +2163,11 @@ class ConnectionState:
 
         if 'all' not in self._sessions:
             # The "all" session does not always exist...
-            # This usually happens if there is only a single session (us)
+            # This happens if there is only a single session (us)
+            # or all sessions are the same state
             # In the case it is "removed", we try to update the old one
             # Else, we create a new one with fake data
-            if len(data) > 1:
-                # We have more than one session, this should not happen
-                fake = data[self.session_id]  # type: ignore
-            else:
-                fake = list(data.values())[0]
+            fake = data.get(self.session_id, list(data.values())[0])  # type: ignore
             if old_all is not None:
                 old = copy.copy(old_all)
                 old_all._update(fake)
@@ -2347,6 +2370,15 @@ class ConnectionState:
             thread = Thread(guild=guild, state=self, data=data)
             guild._add_thread(thread)
             if data.get('newly_created', False):
+                if (
+                    thread.parent
+                    and thread.parent.type in (ChannelType.forum, ChannelType.media)
+                    and thread.owner_id == self.self_id
+                ):
+                    # Implicitly mark our own threads as read
+                    read_state = self.get_read_state(thread.parent_id)
+                    read_state.last_acked_id = thread.id
+                    read_state.badge_count = 0
                 self.dispatch('thread_create', thread)
             else:
                 self.dispatch('thread_join', thread)
@@ -2807,10 +2839,9 @@ class ConnectionState:
         cache: bool,
         force_scraping: bool = ...,
         chunk: bool = ...,
-        channels: List[abcSnowflake] = ...,
+        channels: Sequence[abcSnowflake] = ...,
         delay: Union[int, float] = ...,
-    ) -> List[Member]:
-        ...
+    ) -> List[Member]: ...
 
     @overload
     async def scrape_guild(
@@ -2821,10 +2852,9 @@ class ConnectionState:
         cache: bool,
         force_scraping: bool = ...,
         chunk: bool = ...,
-        channels: List[abcSnowflake] = ...,
+        channels: Sequence[abcSnowflake] = ...,
         delay: Union[int, float] = ...,
-    ) -> asyncio.Future[List[Member]]:
-        ...
+    ) -> asyncio.Future[List[Member]]: ...
 
     async def scrape_guild(
         self,
@@ -2834,7 +2864,7 @@ class ConnectionState:
         cache: bool,
         force_scraping: bool = False,
         chunk: bool = False,
-        channels: List[abcSnowflake] = MISSING,
+        channels: Sequence[abcSnowflake] = MISSING,
         delay: Union[int, float] = MISSING,
     ) -> Union[List[Member], asyncio.Future[List[Member]]]:
         if not guild.me:
@@ -2879,14 +2909,12 @@ class ConnectionState:
     @overload
     async def chunk_guild(
         self, guild: Guild, *, nonce: Optional[str] = ..., wait: Literal[True] = ..., cache: Optional[bool] = ...
-    ) -> List[Member]:
-        ...
+    ) -> List[Member]: ...
 
     @overload
     async def chunk_guild(
         self, guild: Guild, *, nonce: Optional[str] = ..., wait: Literal[False] = ..., cache: Optional[bool] = ...
-    ) -> asyncio.Future[List[Member]]:
-        ...
+    ) -> asyncio.Future[List[Member]]: ...
 
     async def chunk_guild(
         self, guild: Guild, *, nonce: Optional[str] = None, wait: bool = True, cache: Optional[bool] = None
@@ -3166,12 +3194,13 @@ class ConnectionState:
             self.dispatch('scheduled_event_create', scheduled_event)
 
             read_state = self.get_read_state(guild.id, ReadStateType.scheduled_events)
-            if scheduled_event.creator_id == self.self_id:
-                # Implicitly ack created events
-                read_state.last_acked_id = scheduled_event.id
             if not guild.notification_settings.mute_scheduled_events:
                 # Increment badge count if we're not muted
                 read_state.badge_count += 1
+            if scheduled_event.creator_id == self.self_id:
+                # Implicitly ack created events
+                read_state.last_acked_id = scheduled_event.id
+                read_state.badge_count = 0
         else:
             _log.debug('SCHEDULED_EVENT_CREATE referencing unknown guild ID: %s. Discarding.', data['guild_id'])
 
@@ -3517,7 +3546,7 @@ class ConnectionState:
             return channel.guild.get_member(user_id)
         return self.get_user(user_id)
 
-    def get_reaction_emoji(self, data: PartialEmojiPayload) -> Union[Emoji, PartialEmoji, str]:
+    def get_emoji_from_partial_payload(self, data: PartialEmojiPayload) -> Union[Emoji, PartialEmoji, str]:
         emoji_id = utils._get_as_snowflake(data, 'id')
 
         if not emoji_id:
@@ -3528,7 +3557,10 @@ class ConnectionState:
             return self._emojis[emoji_id]
         except KeyError:
             return PartialEmoji.with_state(
-                self, animated=data.get('animated', False), id=emoji_id, name=data['name']  # type: ignore
+                self,
+                animated=data.get('animated', False),
+                id=emoji_id,
+                name=data['name'],  # type: ignore
             )
 
     def _upgrade_partial_emoji(self, emoji: PartialEmoji) -> Union[Emoji, PartialEmoji, str]:
@@ -3607,7 +3639,7 @@ class ConnectionState:
 
     @property
     def current_session(self) -> Optional[Session]:
-        return self._sessions.get(self.session_id)  # type: ignore
+        return self._sessions.get(self.session_id, self.all_session)  # type: ignore
 
     @utils.cached_property
     def client_presence(self) -> FakeClientPresence:
@@ -3659,12 +3691,10 @@ class ConnectionState:
         return presence
 
     @overload
-    def get_read_state(self, id: int, type: ReadStateType = ..., *, if_exists: Literal[False] = ...) -> ReadState:
-        ...
+    def get_read_state(self, id: int, type: ReadStateType = ..., *, if_exists: Literal[False] = ...) -> ReadState: ...
 
     @overload
-    def get_read_state(self, id: int, type: ReadStateType = ..., *, if_exists: Literal[True]) -> Optional[ReadState]:
-        ...
+    def get_read_state(self, id: int, type: ReadStateType = ..., *, if_exists: Literal[True]) -> Optional[ReadState]: ...
 
     def get_read_state(
         self, id: int, type: ReadStateType = ReadStateType.channel, *, if_exists: bool = False

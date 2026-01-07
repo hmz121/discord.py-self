@@ -40,12 +40,17 @@ from typing import (
     Type,
     TypeVar,
     overload,
+    TypedDict,
 )
 
 from .enums import UserFlags
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Self, Unpack
+
+    class _MemberCacheFlagsKwargs(TypedDict, total=False):
+        voice: bool
+        joined: bool
 
 
 __all__ = (
@@ -89,12 +94,10 @@ class flag_value:
         self.__doc__: Optional[str] = func.__doc__
 
     @overload
-    def __get__(self, instance: None, owner: Type[BF]) -> Self:
-        ...
+    def __get__(self, instance: None, owner: Type[BF]) -> Self: ...
 
     @overload
-    def __get__(self, instance: BF, owner: Type[BF]) -> bool:
-        ...
+    def __get__(self, instance: BF, owner: Type[BF]) -> bool: ...
 
     def __get__(self, instance: Optional[BF], owner: Type[BF]) -> Any:
         if instance is None:
@@ -534,6 +537,14 @@ class SystemChannelFlags(BaseFlags):
         .. versionadded:: 2.1
         """
         return 128
+
+    def emoji_added(self):
+        """:class:`bool`: Returns ``True`` if the system channel is used for
+        emoji added notifications.
+
+        .. versionadded:: 2.1
+        """
+        return 256
 
 
 @fill_with_flags()
@@ -1216,7 +1227,7 @@ class MemberCacheFlags(BaseFlags):
 
     __slots__ = ()
 
-    def __init__(self, **kwargs: bool):
+    def __init__(self, **kwargs: Unpack[_MemberCacheFlagsKwargs]) -> None:
         bits = max(self.VALID_FLAGS.values()).bit_length()
         self.value: int = (1 << bits) - 1
         for key, value in kwargs.items():
@@ -1687,12 +1698,12 @@ class SKUFlags(BaseFlags):
 
     @flag_value
     def premium_purchase(self):
-        """:class:`bool`: Returns ``True`` if the SKU is a premium purchase."""
+        """:class:`bool`: Returns ``True`` if the SKU is available for free to premium users."""
         return 1 << 0
 
     @flag_value
     def free_premium_content(self):
-        """:class:`bool`: Returns ``True`` if the SKU is free premium content."""
+        """:class:`bool`: Returns ``True`` if the SKU has free premium content."""
         return 1 << 1
 
     @flag_value
@@ -1702,7 +1713,7 @@ class SKUFlags(BaseFlags):
 
     @flag_value
     def premium_and_distribution(self):
-        """:class:`bool`: Returns ``True`` if the SKU is a premium or distribution product."""
+        """:class:`bool`: Returns ``True`` if the SKU is available for free to premium users and purchasable normally."""
         return 1 << 3
 
     @flag_value
@@ -2751,6 +2762,14 @@ class MemberFlags(BaseFlags):
         """
         return 1 << 4
 
+    def automod_quarantined_guild_tag(self):
+        """:class:`bool`: Returns ``True`` if the member's has been
+        quarantined by AutoMod due to their guild tag.
+
+        .. versionadded:: 2.1
+        """
+        return 1 << 10
+
 
 @fill_with_flags()
 class ReadStateFlags(BaseFlags):
@@ -2814,7 +2833,7 @@ class ReadStateFlags(BaseFlags):
 
     @flag_value
     def mention_low_importance(self):
-        """:class:`bool`: Returns ``True`` if the read state's badge is of low importance."""
+        """:class:`bool`: Returns ``True`` if the read state mention count is low importance."""
         return 1 << 2
 
 

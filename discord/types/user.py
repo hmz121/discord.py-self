@@ -30,6 +30,30 @@ from typing_extensions import NotRequired
 from .integration import ConnectionIntegration
 from .snowflake import Snowflake
 
+NameplatePallete = Literal['crimson', 'berry', 'sky', 'teal', 'forest', 'bubble_gum', 'violet', 'cobalt', 'clover']
+
+
+class _UserSKU(TypedDict):
+    asset: str
+    sku_id: Snowflake
+
+
+class AvatarDecorationData(_UserSKU):
+    expires_at: Optional[int]
+
+
+class Collectible(_UserSKU):
+    label: str
+    expires_at: Optional[str]
+
+
+class NameplateCollectible(Collectible):
+    palette: str
+
+
+class UserCollectibles(TypedDict):
+    nameplate: NameplateCollectible
+
 
 class PartialUser(TypedDict):
     id: Snowflake
@@ -42,7 +66,8 @@ class PartialUser(TypedDict):
     system: NotRequired[bool]
     global_name: Optional[str]
     primary_guild: NotRequired[Optional[PrimaryGuild]]
-    display_name_styles: Optional[DisplayNameStyle]
+    display_name_styles: NotRequired[Optional[DisplayNameStyle]]
+    collectibles: NotRequired[Optional[UserCollectibles]]
 
 
 ConnectionType = Literal[
@@ -94,7 +119,6 @@ class User(APIUser, total=False):
     phone: Optional[str]
     token: str
     nsfw_allowed: Optional[bool]
-    premium_type: PremiumType
     desktop: bool
     mobile: bool
 
@@ -107,12 +131,6 @@ class DisplayNameStyle(TypedDict):
 
 class UserWithToken(User):
     token: str
-
-
-class AvatarDecorationData(TypedDict):
-    asset: str
-    sku_id: Snowflake
-    expires_at: Optional[int]
 
 
 class PrimaryGuild(TypedDict):
