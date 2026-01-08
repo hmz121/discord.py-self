@@ -291,10 +291,19 @@ class VoiceConnectionState:
         elif self.state is not ConnectionFlowState.disconnected:
             if channel_id != self.voice_client.channel.id:
                 # For some unfortunate reason we were moved during the connection flow
-                _log.info('Ignoring channel move while connecting...')
+                _log.info('Handling channel move while connecting...')
 
                 self._update_voice_channel(channel_id)
                 await self.soft_disconnect(with_state=ConnectionFlowState.got_voice_state_update)
+                await self.connect(
+                    reconnect=self.reconnect,
+                    timeout=self.timeout,
+                    self_deaf=(self.self_voice_state or self).self_deaf,
+                    self_mute=(self.self_voice_state or self).self_mute,
+                    self_video=(self.self_voice_state or self).self_video,
+                    resume=False,
+                    wait=False,
+                )
             else:
                 _log.debug('Ignoring unexpected VOICE_STATE_UPDATE event.')
 
@@ -747,4 +756,8 @@ class VoiceConnectionState:
         self.state = ConnectionFlowState.set_guild_voice_state
 
     def _update_voice_channel(self, channel_id: Optional[int]) -> None:
-        self.voice_client.channel = channel_id and self.guild.get_channel(channel_id) if self.guild else self.voice_client._state._get_private_channel(channel_id)  # type: ignore
+        self.voice_client.channel = (
+            channel_id and self.guild.get_channel(channel_id)
+            if self.guild
+            else self.voice_client._state._get_private_channel(channel_id)
+        )  # type: ignore
