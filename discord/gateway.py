@@ -944,7 +944,7 @@ class DiscordVoiceWebSocket:
 
     async def _sendstr(self, data: str, /) -> None:
         try:
-            await self.ws.send_str(data)
+            await self.ws.send(data.encode('utf-8'))
         except WebSocketError:
             if self.ws.closed:
                 # Not much we can do here
@@ -1149,7 +1149,7 @@ class DiscordVoiceWebSocket:
         # This exception is handled up the chain
         msg, flags = await asyncio.wait_for(self.ws.recv(), timeout=self._max_heartbeat_timeout)
 
-        if (flags & CurlWsFlag.TEXT) or (flags & CurlWsFlag.BINARY):
+        if flags & CurlWsFlag.TEXT:
             await self.received_message(utils._from_json(msg))
         elif flags & CurlWsFlag.CLOSE:
             socket = self.ws
