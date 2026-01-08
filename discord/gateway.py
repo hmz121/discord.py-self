@@ -1,3 +1,4 @@
+
 """
 The MIT License (MIT)
 
@@ -146,7 +147,7 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
 
         self.msg: str = 'Keeping websocket alive.'
         self.block_msg: str = 'Heartbeat blocked for more than %s seconds.'
-        self.behind_msg: str = 'Can\'t keep up, websocket is %.1fs behind.'
+        self.behind_msg: str = "Can't keep up, websocket is %.1fs behind."
         self.not_responding_msg: str = 'Gateway has stopped responding. Closing and restarting.'
         self.no_stop_msg: str = 'An error occurred while stopping the Gateway. Ignoring.'
 
@@ -174,7 +175,7 @@ class KeepAliveHandler:  # Inspired by enhanced-discord.py/Gnome
                     _log.exception(self.no_stop_msg)
                 finally:
                     self.stop()
-                    return
+                return
 
             data = self.get_payload()
             _log.debug(self.msg)
@@ -991,7 +992,7 @@ class DiscordVoiceWebSocket:
         *,
         resume: bool = False,
         hook: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None,
-        seq_ack: int = -1
+        seq_ack: int = -1,
     ) -> Self:
         """Creates a voice websocket for the :class:`VoiceClient`."""
         gateway = f'wss://{state.endpoint}/?v=8'
@@ -1148,6 +1149,9 @@ class DiscordVoiceWebSocket:
     async def poll_event(self) -> None:
         # This exception is handled up the chain
         msg, flags = await asyncio.wait_for(self.ws.recv(), timeout=self._max_heartbeat_timeout)
+        if msg is None:
+            # Should never happen
+            return
 
         if (flags & CurlWsFlag.TEXT) or (flags & CurlWsFlag.BINARY):
             await self.received_message(utils._from_json(msg))
